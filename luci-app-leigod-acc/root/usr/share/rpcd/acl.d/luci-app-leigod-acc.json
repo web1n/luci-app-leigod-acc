@@ -1,0 +1,10 @@
+{
+	"luci-app-leigod-acc": {
+		"description": "Grant access to Leigod accelerator configuration",
+		"read": {
+			"ubus": { "service": [ "list" ] },
+			"uci": [ "leigod-acc" ]
+		},
+		"write": { "uci": [ "leigod-acc" ] }
+	}
+}

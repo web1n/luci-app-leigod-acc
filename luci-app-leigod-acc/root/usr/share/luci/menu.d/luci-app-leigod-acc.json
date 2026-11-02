@@ -1,0 +1,8 @@
+{
+	"admin/services/leigod-acc": {
+		"title": "Leigod Accelerator",
+		"order": 60,
+		"action": { "type": "view", "path": "leigod-acc" },
+		"depends": { "acl": [ "luci-app-leigod-acc" ] }
+	}
+}
