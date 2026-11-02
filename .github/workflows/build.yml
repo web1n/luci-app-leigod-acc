@@ -1,0 +1,78 @@
+name: Build packages
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - mipsel_24kc
+          - aarch64_cortex-a53
+          - arm_cortex-a7_neon-vfpv4
+          - x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build packages with ImmortalWrt SDK
+        uses: immortalwrt/gh-action-sdk@master
+        env:
+          ARCH: ${{ matrix.arch }}
+          PACKAGES: leigod-acc luci-app-leigod-acc
+          NO_SHFMT_CHECK: 1
+          V: s
+
+      - name: Collect packages
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          find bin/packages -type f \( -name 'leigod-acc*.apk' -o -name 'leigod-acc*.ipk' -o -name 'luci-*leigod-acc*.apk' -o -name 'luci-*leigod-acc*.ipk' \) -exec cp -t artifacts {} +
+          compgen -G 'artifacts/leigod-acc*' > /dev/null
+          compgen -G 'artifacts/luci-app-leigod-acc*' > /dev/null
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: leigod-acc-${{ matrix.arch }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: leigod-acc-*
+          path: downloaded
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          mkdir -p release
+          for dir in downloaded/leigod-acc-*; do
+            [ -d "$dir" ] || continue
+            arch="${dir#downloaded/leigod-acc-}"
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              cp "$file" "release/${arch}-$(basename "$file")"
+            done
+          done
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          fail_on_unmatched_files: true
